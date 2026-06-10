@@ -1,84 +1,74 @@
-# export-chromium-history
+# jj-export-chromium-history
 
-Export browsing history from Chromium-based browsers and convert it into a Safari-importable format.
+Bun single-file executable CLI (macOS only). Uses **Safari as the relay** to migrate browsing history across browsers — exports a Chromium-based browser's `History` SQLite to Safari-importable JSON; any browser with "Import from Safari" then picks it up downstream.
 
-## Background
+```text
+Chromium browser ──[this tool]──► JSON ──► Safari ──[Import from Safari]──► other browsers
+```
 
-Chrome and Chromium-based browsers do not provide a direct way to export browsing history. This tool reads the local `History` SQLite database and converts records into a Safari-compatible JSON format, enabling cross-browser history migration.
+## Install
 
-| Migration Direction | Approach |
-|----------|------|
-| Chromium → Safari | Export with this tool → Import into Safari |
-| Safari → Chromium | Use Chromium's built-in import feature |
+```bash
+curl -fsSL https://raw.githubusercontent.com/yigegongjiang/jj-export-chromium-history/main/install.sh | bash
+```
 
-## Requirements
-
-- Python 3.8+
-- [uv](https://github.com/astral-sh/uv) package manager
+Installs to `$HOME/.local/bin`.
 
 ## Usage
 
-### 1. Locate the History file
-
-Chromium-based browsers store their browsing history in a SQLite file named `History`.
-
-**Method 1: Check in the browser**
-
-1. Enter `chrome://version` in the address bar
-2. Find **Profile Path**
-3. The `History` file is located in that directory
-
-**Method 2: Search from the command line**
-
 ```bash
-# Example: search for Atlas browser
-find ~/Library/Application\ Support/com.openai.atlas/ -name "History" -type f
+jj-export-chromium-history chrome             # quick: macOS Default profile
+jj-export-chromium-history --path <History>   # custom path / non-default profile
 ```
 
-**Common paths (macOS):**
+Browser shortcuts (macOS `Default` profile of each):
 
-| Browser | Path |
-|--------|------|
-| Chrome | `~/Library/Application Support/Google/Chrome/Default/History` |
-| Dia | `~/Library/Application Support/Dia/User Data/Default/History` |
-| Arc | `~/Library/Application Support/Arc/User Data/Default/History` |
-| Atlas | `~/Library/Application Support/com.openai.atlas/browser-data/host/user-xxxxxxxxx/History` |
-| Helium | `~/Library/Application Support/net.imput.helium/Default/History` |
+<!-- prettier-ignore -->
+| Subcommand | Browser | Resolved path |
+|---|---|---|
+| `chrome` | Chrome | `~/Library/Application Support/Google/Chrome/Default/History` |
+| `chromium` | Chromium | `~/Library/Application Support/Chromium/Default/History` |
+| `arc` | Arc | `~/Library/Application Support/Arc/User Data/Default/History` |
+| `dia` | Dia | `~/Library/Application Support/Dia/User Data/Default/History` |
+| `atlas` | Atlas | `~/Library/Application Support/com.openai.atlas/Default/History` |
+| `comet` | Comet | `~/Library/Application Support/Comet/Default/History` |
+| `helium` | Helium | `~/Library/Application Support/net.imput.helium/Default/History` |
 
-### 2. Run the export
+<!-- prettier-ignore -->
+| Option | Description |
+|---|---|
+| `--path` | Path to the browser's `History` SQLite file (overrides the shortcut; use for non-Default profile / unlisted browser) |
 
-```bash
-# Export the last 7 days (default)
-uv run export_chromium_history.py --path "/path/to/History"
+<!-- prettier-ignore -->
+| Command | Alias | Description |
+|---|---|---|
+| `help` | `-h` / `--help` | Usage |
+| `version` | `-v` / `--version` | Version |
+| `update` | `upgrade` | Self-update (compiled binary only) |
+| `uninstall` | — | Uninstall (compiled binary only) |
 
-# Export the last 30 days
-uv run export_chromium_history.py --path "/path/to/History" --days 30
-```
+Output: `./output_YYYYMMDD_HHMMSS/BrowserHistory_NNN.json` (≤ 1000 records per file). The output directory path is printed at the end.
 
-**Parameters:**
+## Locate the `History` file (custom profile)
 
-| Parameter | Description | Default |
-|------|------|--------|
-| `--path` | Path to the History file | Required |
-| `--days` | Number of days to export | 7 |
+Type `chrome://version` in the browser → **Profile Path** → `History` lives there. Pass it via `--path` when not using the `Default` profile.
 
-### 3. Output
+## Step 1 — Import JSON into Safari
 
-After the export completes, an `output_YYYYMMDD_HHMMSS/` folder is created in the current directory, containing:
+1. Safari → **File** → **Import Browsing Data from File or Folder...**
+2. Select the whole `output_*/` folder (not a single JSON file)
+3. Wait for the import to complete
 
-```
-output_20260128_195533/
-├── BrowserHistory_001.json
-├── BrowserHistory_002.json
-└── ...
-```
+## Step 2 — Forward to another browser (optional)
 
-## Import into Safari
+Skip if Safari is the destination. Otherwise pull from Safari in the target browser:
 
-1. Open Safari → **File** → **Import Browsing Data from File or Folder...**
-2. Select the `output_*/` folder (select the whole folder, not a single JSON file)
-3. Finish the import
+<!-- prettier-ignore -->
+| Target | Path |
+|---|---|
+| Chromium-based (Chrome / Arc / Dia / Edge / Brave / Opera / Comet / Atlas / Helium / etc.) | Bookmarks → Import Bookmarks and Settings → Safari |
+| Firefox | Library → Import Data from Another Browser → Safari |
 
-## License
+> Most browsers' "Import from Safari" includes history; if a target omits the history option, add a Firefox hop — Safari → Firefox → target browser, history preserved end-to-end.
 
-MIT
+> History is sensitive data — every browser caps imports by count / time window, and the limits differ across browsers. e.g. Safari only ingests the **last 90 days** of history on import; Firefox importing from Safari only accepts the **last 180 days**. Fine for everyday use; preserving the **full** history needs direct DB rewrites, out of scope for this project.

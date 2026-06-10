@@ -1,0 +1,24 @@
+# Changelog (developer)
+
+面向开发者, 镜像 [CHANGELOG.md](./CHANGELOG.md) 每条变更并补技术细节. 规则见 [llm-doc-style.md](./llm-doc-style.md).
+
+## [0.1.0] - 2026-06-10
+
+### Added
+
+- 子命令 `help` / `version` / `update` / `uninstall`, 支持 macOS x64 / arm64
+  - `src/index.ts` `main()` switch 路由; `update()` = `fetch().arrayBuffer()` + SHA256 + `rename` 原子替换 + `chmod`; `assertInstalled()` 经 `basename(process.execPath)` 守卫拒源码运行时调用; `NAME` / `VERSION` / `REPO` 直接读 `package.json` (`bun build --compile` 会随 `import ... with { type: "json" }` 嵌入产物); `build.ts` 交叉编译 darwin-x64/arm64
+- 浏览器快捷子命令 `chrome` / `chromium` / `arc` / `dia` / `atlas` / `comet` / `helium` 自动定位 macOS Default profile, 免输 `--path`
+  - `BROWSERS: Record<string, string>` 表驱动 `cmd → ~/Library/...` 默认 Profile 路径; `main()` default 分支命中表后直接 `expandHome()` 转 ExportArgs, 不走 `parseExportArgs`; 多余位置参数报 `unexpected extra arguments`; 表外浏览器 / 非 Default profile 回退 `--path`
+- `--path <History>` 选浏览器, 导全部记录到 `./output_*/`, 末尾打印输出目录 (每文件 ≤ 1000 条)
+  - `exportHistory()`: `copyFile` 到 `tmpdir()` 规避 live DB 锁; `bun:sqlite` 只读 JOIN `visits`/`urls`; Chromium epoch (1601) offset 转换; `transition & 0xFF` → `TRANSITION_MAP`; `Math.ceil(total/1000)` 切分 `BrowserHistory_NNN.json`. `expandHome()` 在程序内 fallback `~` (shell 引号下不展开)
+- `install.sh` 一键安装, 产物附 SHA256 校验和
+  - `install.sh`: `uname` 检测 → 下载 → `shasum` 校验 → `mktemp`/`trap` → 装入 `~/.local/bin`
+  - `.github/workflows/release.yml`: `v*` tag → 校验 tag 与 `package.json#version` → build → `sha256sum` 生成 `checksums.txt` → `softprops/action-gh-release` 发布
+
+### Changed
+
+- 由 Python `uv` 脚本迁移为 Bun 单文件可执行 CLI; 移除 `--days` 限制 (默认全量)
+  - 删除 `export_chromium_history.py`; 新增 `src/` + `build.ts` + `tsconfig.json` + `package.json`; SQL 去 `WHERE visit_time >= cutoff`; schema 字段校验改由 SQL 自然失败报错, 不再 `PRAGMA table_info` 预检
+
+[0.1.0]: https://github.com/yigegongjiang/jj-export-chromium-history/releases/tag/v0.1.0

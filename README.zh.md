@@ -1,84 +1,74 @@
-# export-chromium-history
+# jj-export-chromium-history
 
-从 Chromium 内核浏览器导出浏览历史记录，并转换为 Safari 可导入的格式。
+Bun 单文件可执行 CLI (仅 macOS). **以 Safari 为中转枢纽**实现跨浏览器历史迁移 — 把 Chromium 系浏览器的 `History` SQLite 导出为 Safari 可导入的 JSON; 任何支持 "Import from Safari" 的浏览器再从 Safari 接力拉取.
 
-## 背景
+```text
+Chromium 浏览器 ──[本工具]──► JSON ──► Safari ──[Import from Safari]──► 其他浏览器
+```
 
-Chrome 及 Chromium 内核浏览器不支持直接导出浏览历史。本工具通过读取本地 `History` SQLite 数据库，将记录转换为 Safari 兼容的 JSON 格式，实现跨浏览器历史迁移。
-
-| 迁移方向 | 方案 |
-|----------|------|
-| Chromium → Safari | 使用本工具导出 → Safari 导入 |
-| Safari → Chromium | Chromium 内置导入功能 |
-
-## 环境要求
-
-- Python 3.8+
-- [uv](https://github.com/astral-sh/uv) 包管理器
-
-## 使用方法
-
-### 1. 定位 History 文件
-
-Chromium 内核浏览器的历史记录存储在名为 `History` 的 SQLite 文件中。
-
-**方法一：通过浏览器查看**
-
-1. 地址栏输入 `chrome://version`
-2. 找到 **Profile Path**
-3. `History` 文件位于该目录下
-
-**方法二：命令行搜索**
+## 安装
 
 ```bash
-# 示例：搜索 Atlas 浏览器
-find ~/Library/Application\ Support/com.openai.atlas/ -name "History" -type f
+curl -fsSL https://raw.githubusercontent.com/yigegongjiang/jj-export-chromium-history/main/install.sh | bash
 ```
 
-**常见路径参考（macOS）：**
+默认装到 `$HOME/.local/bin`.
 
-| 浏览器 | 路径 |
-|--------|------|
-| Chrome | `~/Library/Application Support/Google/Chrome/Default/History` |
-| Dia | `~/Library/Application Support/Dia/User Data/Default/History` |
-| Arc | `~/Library/Application Support/Arc/User Data/Default/History` |
-| Atlas | `~/Library/Application Support/com.openai.atlas/browser-data/host/user-xxxxxxxxx/History` |
-| Helium | `~/Library/Application Support/net.imput.helium/Default/History` |
-
-### 2. 执行导出
+## 用法
 
 ```bash
-# 导出最近 7 天（默认）
-uv run export_chromium_history.py --path "/path/to/History"
-
-# 导出最近 30 天
-uv run export_chromium_history.py --path "/path/to/History" --days 30
+jj-export-chromium-history chrome             # 快捷: macOS Default profile
+jj-export-chromium-history --path <History>   # 自定义路径 / 非 Default profile
 ```
 
-**参数说明：**
+浏览器快捷子命令 (各浏览器 macOS `Default` profile):
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `--path` | History 文件路径 | 必填 |
-| `--days` | 导出天数 | 7 |
+<!-- prettier-ignore -->
+| 子命令 | 浏览器 | 解析路径 |
+|---|---|---|
+| `chrome` | Chrome | `~/Library/Application Support/Google/Chrome/Default/History` |
+| `chromium` | Chromium | `~/Library/Application Support/Chromium/Default/History` |
+| `arc` | Arc | `~/Library/Application Support/Arc/User Data/Default/History` |
+| `dia` | Dia | `~/Library/Application Support/Dia/User Data/Default/History` |
+| `atlas` | Atlas | `~/Library/Application Support/com.openai.atlas/Default/History` |
+| `comet` | Comet | `~/Library/Application Support/Comet/Default/History` |
+| `helium` | Helium | `~/Library/Application Support/net.imput.helium/Default/History` |
 
-### 3. 输出结果
+<!-- prettier-ignore -->
+| 选项 | 说明 |
+|---|---|
+| `--path` | 浏览器 `History` SQLite 文件路径 (覆盖快捷子命令; 用于非 Default profile / 表内未列出的浏览器) |
 
-导出完成后，当前目录下生成 `output_YYYYMMDD_HHMMSS/` 文件夹，包含：
+<!-- prettier-ignore -->
+| 命令 | 别名 | 说明 |
+|---|---|---|
+| `help` | `-h` / `--help` | 用法 |
+| `version` | `-v` / `--version` | 版本 |
+| `update` | `upgrade` | 自更新 (仅编译后二进制) |
+| `uninstall` | — | 卸载 (仅编译后二进制) |
 
-```
-output_20260128_195533/
-├── BrowserHistory_001.json
-├── BrowserHistory_002.json
-└── ...
-```
+输出: `./output_YYYYMMDD_HHMMSS/BrowserHistory_NNN.json` (每文件 ≤ 1000 条). 执行完毕末尾打印输出目录 path.
 
-## 导入 Safari
+## 定位 `History` 文件 (自定义 profile)
 
-1. 打开 Safari → **文件** → **从文件或文件夹导入浏览数据...**
-2. 选择 `output_*/` 文件夹（选择整个文件夹，而非单个 JSON 文件）
-3. 完成导入
+浏览器地址栏输入 `chrome://version` → 看 **Profile Path** → `History` 在该目录下. 非 Default profile 时用 `--path` 传入.
 
-## License
+## Step 1 — JSON 导入 Safari
 
-MIT
+1. Safari → **文件** → **从文件或文件夹导入浏览数据...**
+2. 选 `output_*/` 整个文件夹 (而非单个 JSON)
+3. 等待导入完成
+
+## Step 2 — 从 Safari 接力到其他浏览器 (可选)
+
+终点是 Safari 则跳过. 否则在目标浏览器里从 Safari 接力导入:
+
+<!-- prettier-ignore -->
+| 目标浏览器 | 路径 |
+|---|---|
+| Chromium 系 (Chrome / Arc / Dia / Edge / Brave / Opera / Comet / Atlas / Helium 等) | 书签 → 导入书签和设置 → Safari |
+| Firefox | 资料库 → 从其他浏览器导入数据 → Safari |
+
+> 多数浏览器 "Import from Safari" 带 history; 个别浏览器无 history 选项时, 加一跳 Firefox 中转 — Safari → Firefox → 目标浏览器, history 全程保留.
+
+> History 属敏感数据 — 各浏览器对 import 均有 数量 / 时间窗口 限制, 各家卡口不一致. 例如 Safari import 时只接收**最近 90 天**的历史, Firefox 从 Safari import 时只接收**最近 180 天**. 日常使用够用; 要保留**全量**历史须直接重写数据库, 不在本项目能力范围.
