@@ -1,6 +1,6 @@
 {
   "name": "jj-export-chromium-history",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Export Chromium browser history to Safari-importable JSON",
   "type": "module",
   "private": true,

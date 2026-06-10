@@ -2,6 +2,12 @@
 
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) + [SemVer](https://semver.org/).
 
+## [0.1.1] - 2026-06-10
+
+### Changed
+
+- `update` / `upgrade` 完成后打印更新前后的版本号
+
 ## [0.1.0] - 2026-06-10
 
 ### Added
@@ -15,4 +21,5 @@
 
 - 由 Python `uv` 脚本迁移为 Bun 单文件可执行 CLI; 移除 `--days` 限制 (默认全量)
 
+[0.1.1]: https://github.com/yigegongjiang/jj-export-chromium-history/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/yigegongjiang/jj-export-chromium-history/releases/tag/v0.1.0

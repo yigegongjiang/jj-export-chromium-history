@@ -185,6 +185,18 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+async function readVersion(bin: string): Promise<string | null> {
+  try {
+    const proc = Bun.spawn([bin, "version"], { stdout: "pipe", stderr: "ignore" });
+    await proc.exited;
+    if (proc.exitCode !== 0) return null;
+    const out = (await new Response(proc.stdout).text()).trim();
+    return out.split(/\s+/).pop() ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function update(): Promise<number> {
   assertInstalled("self-update");
 
@@ -192,7 +204,7 @@ async function update(): Promise<number> {
   const base = `https://github.com/${REPO}/releases/latest/download`;
   const dest = process.execPath;
 
-  console.log(`==> Updating ${NAME} (current: ${VERSION})`);
+  console.log(`==> Updating ${NAME} ${VERSION} -> latest`);
   const bytes = await fetchBytes(`${base}/${asset}`);
 
   // Best-effort checksum.
@@ -223,7 +235,9 @@ async function update(): Promise<number> {
     throw err;
   }
 
-  console.log(`==> Updated: ${dest}`);
+  const newVersion = (await readVersion(dest)) ?? "unknown";
+  console.log(`==> Updated ${NAME} ${VERSION} -> ${newVersion}`);
+  console.log(`    ${dest}`);
   return 0;
 }
 
